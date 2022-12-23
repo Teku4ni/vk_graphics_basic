@@ -1,3 +1,8 @@
 bin
 build
 external
+/.vs/vk_graphics_basic/FileContentIndex
+/.vs/vk_graphics_basic/v17/ipch/AutoPCH
+/.vs/vk_graphics_basic/v17
+/CMakeSettings.json
+/.vs
