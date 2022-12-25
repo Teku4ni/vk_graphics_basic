@@ -67,14 +67,28 @@ private:
     float4x4 model;
   } pushConst2M;
 
+  struct
+  {
+    etna::Image albedo;
+    etna::Image normals;
+  } gBuffer;
+
+  struct
+  {
+    float4x4 inverse_proj;
+    float4x4 inverse_view;
+  } pushConstDeferred;
+
   float4x4 m_worldViewProj;
   float4x4 m_lightMatrix;    
 
   UniformParams m_uniforms {};
   void* m_uboMappedMem = nullptr;
 
-  etna::GraphicsPipeline m_basicForwardPipeline {};
+  //etna::GraphicsPipeline m_basicForwardPipeline {};
   etna::GraphicsPipeline m_shadowPipeline {};
+  etna::GraphicsPipeline m_gbuffersPipeline{};
+  etna::GraphicsPipeline m_deferredPipeline{};
 
   std::shared_ptr<vk_utils::DescriptorMaker> m_pBindings = nullptr;
   

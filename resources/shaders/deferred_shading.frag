@@ -1,0 +1,55 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : require
+
+#include "common.h"
+
+layout(location = 0) out vec4 out_fragColor;
+
+layout (location = 0 ) in VS_OUT
+{
+  vec2 texCoord;
+} vOut;
+
+layout(push_constant) uniform params_t
+{
+    mat4 inverseProj;
+    mat4 inverseView;
+} params;
+
+layout(binding = 0, set = 0) uniform data
+{
+  UniformParams Params;
+};
+
+layout (binding = 1) uniform sampler2D shadowMap;
+layout (binding = 2) uniform sampler2D albedo;
+layout (binding = 3) uniform sampler2D normals;
+layout (binding = 4) uniform sampler2D depth;
+
+void main()
+{
+  float x = vOut.texCoord.x * 2.0 - 1.0;
+  float y = vOut.texCoord.y * 2.0 - 1.0;
+  float z = textureLod(depth, vOut.texCoord, 0).x;
+  vec4 viewSpacePosition = params.inverseProj * vec4(x, y, z, 1.0);
+  viewSpacePosition /= viewSpacePosition.w; 
+  vec4 wPos = params.inverseView * viewSpacePosition;
+  const vec4 wNorm = textureLod(normals, vOut.texCoord, 0);
+
+  const vec4 posLightClipSpace = Params.lightMatrix*wPos; 
+  const vec3 posLightSpaceNDC  = posLightClipSpace.xyz/posLightClipSpace.w;    // for orto matrix, we don't need perspective division, you can remove it if you want; this is general case;
+  const vec2 shadowTexCoord    = posLightSpaceNDC.xy*0.5f + vec2(0.5f, 0.5f);  // just shift coords from [-1,1] to [0,1]               
+
+  const bool  outOfView = (shadowTexCoord.x < 0.0001f || shadowTexCoord.x > 0.9999f || shadowTexCoord.y < 0.0091f || shadowTexCoord.y > 0.9999f);
+  const float shadow    = ((posLightSpaceNDC.z < textureLod(shadowMap, shadowTexCoord, 0).x + 0.001f) || outOfView) ? 1.0f : 0.0f;
+
+  const vec4 yellow = vec4(1.0f, 1.0f, 0.3f, 1.0f);
+  const vec4 emerald_green = vec4(0.016f, 0.388f, 0.0028f, 1.0f);
+  vec4 lightColor1 = mix(yellow, emerald_green, 0.5f + 0.5f * sin(Params.time));
+  vec3 lightDir   = mat3(cos(Params.time), 0, sin(Params.time),
+                         0, 1, 0,
+                         -sin(Params.time), 0, cos(Params.time)) * normalize(Params.lightPos - wPos.xyz);
+  vec4 lightColor = max(dot(wNorm.xyz, lightDir), 0.0f) * lightColor1;
+  out_fragColor   = (lightColor*shadow + vec4(0.1f)) * textureLod(albedo, vOut.texCoord, 0);
+}
