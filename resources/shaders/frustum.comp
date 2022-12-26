@@ -1,0 +1,64 @@
+#version 430
+
+layout( local_size_x = 32 ) in;
+
+struct BoundingBox {
+    vec4 angle1;
+    vec4 angle2;
+};
+
+layout( push_constant ) uniform params {
+    mat4 mProjView;
+    BoundingBox box;
+    uint numberOfInstances;
+} PushConstant;
+
+layout(std430, binding = 0) readonly buffer PositionMatrices {
+    mat4 positionMatrices[];
+};
+
+layout(std430, binding = 1) buffer indicesOfVisibleObjects {
+    uint indicesOfVisibleObjects[];
+};
+
+layout(std430, binding = 2) buffer numberOfVisibleObjects {
+    uint numberOfVisibleObjects;
+};
+
+vec4[8] getTransformedVertices(mat4 transformMat, BoundingBox box)
+{
+    vec4 vertices[8] = {
+        {box.angle1.x, box.angle1.y, box.angle1.z, 1.f}, 
+        {box.angle1.x, box.angle1.y, box.angle2.z, 1.f}, 
+        {box.angle1.x, box.angle2.y, box.angle1.z, 1.f}, 
+        {box.angle1.x, box.angle2.y, box.angle2.z, 1.f},
+        {box.angle2.x, box.angle1.y, box.angle1.z, 1.f},
+        {box.angle2.x, box.angle1.y, box.angle2.z, 1.f},
+        {box.angle2.x, box.angle2.y, box.angle1.z, 1.f},
+        {box.angle2.x, box.angle2.y, box.angle2.z, 1.f},
+    };
+    for (uint i = 0; i < 8; ++i)
+        vertices[i] = transformMat * vertices[i];
+    return vertices;
+}
+
+bool visible(vec4[8] vertices) 
+{
+    for (uint i = 0; i < 8; ++i)
+        if (-vertex.w <= vertex.x && vertex.x <= vertex.w &&
+            -vertex.w <= vertex.y && vertex.y <= vertex.w &&
+            0.f <= vertex.z && vertex.z <= vertex.w)
+            return true;
+    return false;
+}
+
+void main() 
+{
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx < PushConstant.numberOfInstances) {
+        mat4 transformMat = PushConstant.mProjView * positionMatrices[idx];
+        if (visible(getTransformedVertices(transformMat, PushConstant.box))) {
+            indicesOfVisibleObjects[atomicAdd(numberOfVisibleObjects, 1)] = idx;
+        }
+    }
+}

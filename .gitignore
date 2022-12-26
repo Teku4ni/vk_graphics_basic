@@ -3,3 +3,5 @@ build
 external
 .vs
 .cache
+/resources/scenes/roadbike
+/resources/scenes/sportscar

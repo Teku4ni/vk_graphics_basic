@@ -47,6 +47,10 @@ private:
   etna::Image shadowMap;
   etna::Sampler defaultSampler;
   etna::Buffer constants;
+  etna::Buffer infoDrawIndirect;
+  etna::Buffer positionMatrices;
+  etna::Buffer indicesOfVisibleObjects;
+  etna::Buffer numberOfVisibleObjects;
 
   VkCommandPool    m_commandPool    = VK_NULL_HANDLE;
 
@@ -66,15 +70,26 @@ private:
     float4x4 projView;
     float4x4 model;
   } pushConst2M;
+  struct
+  {
+    float4x4 projView;
+    Box4f box;
+    uint32_t numberOfInstances;
+  } pushConst;
 
   float4x4 m_worldViewProj;
   float4x4 m_lightMatrix;    
 
   UniformParams m_uniforms {};
   void* m_uboMappedMem = nullptr;
+  void* m_uboInfoDrawIndirect = nullptr;
+  void* m_uboPositionMatrices = nullptr;
+  void* m_uboOutputInstances = nullptr;
+  void* m_uboInstanceCount = nullptr;
 
   etna::GraphicsPipeline m_basicForwardPipeline {};
   etna::GraphicsPipeline m_shadowPipeline {};
+  etna::ComputePipeline m_frustumCullingPipeline{};
 
   std::shared_ptr<vk_utils::DescriptorMaker> m_pBindings = nullptr;
   
@@ -85,6 +100,8 @@ private:
   uint32_t m_width  = 1024u;
   uint32_t m_height = 1024u;
   uint32_t m_framesInFlight = 2u;
+  uint32_t m_numberOfInstances = 10000;
+  uint32_t m_workGroupSize = 32;
   bool m_vsync = false;
 
   vk::PhysicalDeviceFeatures m_enabledDeviceFeatures = {};
@@ -95,7 +112,9 @@ private:
   
   std::shared_ptr<vk_utils::IQuad>               m_pFSQuad;
   VkDescriptorSet       m_quadDS; 
+  VkDescriptorSet       m_computeDS;
   VkDescriptorSetLayout m_quadDSLayout = nullptr;
+  VkDescriptorSetLayout m_computeDSLayout = nullptr;
 
   struct InputControlMouseEtc
   {
@@ -140,7 +159,7 @@ private:
   void RecreateSwapChain();
 
   void UpdateUniformBuffer(float a_time);
-
+  void ExecuteFrustumCullingShader(VkCommandBuffer a_cmdBuff, const float4x4 &a_wvp);
 
   void SetupDeviceExtensions();
 
