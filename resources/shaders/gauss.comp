@@ -1,0 +1,119 @@
+#version 430
+
+layout(local_size_x = 32, local_size_y = 32) in;
+
+const uint KerSize = 17;
+const uint KerRad = KerSize / 2;
+
+layout (rgba32f, binding = 0) uniform readonly  image2D noBlurImg;
+layout (rgba32f, binding = 1) uniform writeonly image2D blurImg;
+
+layout (push_constant) uniform Kernel {
+    float coeffs[KerSize];
+} kernel;
+
+shared vec3[48][48] ImgPiece;
+
+void prepareImgPiece(uvec2 id, uvec2 l_id, uvec2 NoBlurSize, uvec2 groupSize)
+{
+    ImgPiece[l_id.y + KerRad][l_id.x + KerRad] = imageLoad(noBlurImg, ivec2(id)).rgb;
+    //left
+    if (l_id.x < KerRad)                                             
+    {
+        if (id.x < KerRad)
+            ImgPiece[l_id.y + KerRad][l_id.x] = vec3(0.f);
+        else
+            ImgPiece[l_id.y + KerRad][l_id.x] = imageLoad(noBlurImg, ivec2(id.x - KerRad, id.y)).rgb;
+    }
+    //top-left
+    if (l_id.x < KerRad && l_id.y < KerRad)                           
+    {
+        if (id.x < KerRad || id.y < KerRad)
+            ImgPiece[l_id.y][l_id.x] = vec3(0.f);
+        else
+            ImgPiece[l_id.y][l_id.x] = imageLoad(noBlurImg, ivec2(id.x - KerRad, id.y - KerRad)).rgb;
+    }
+    //top
+    if (l_id.y < KerRad)                                             
+    {
+        if (id.y < KerRad)
+            ImgPiece[l_id.y][l_id.x + KerRad] = vec3(0.f);
+        else
+            ImgPiece[l_id.y][l_id.x + KerRad] = imageLoad(noBlurImg, ivec2(id.x, id.y - KerRad)).rgb;
+    }
+    //top-right
+    if (l_id.x + KerRad >= groupSize.x && l_id.y < KerRad)                
+    {
+        if (id.x >= NoBlurSize.x - KerRad || id.y < KerRad)
+            ImgPiece[l_id.y][l_id.x + 2 * KerRad] = vec3(0.f);
+        else
+            ImgPiece[l_id.y][l_id.x + 2 * KerRad] = imageLoad(noBlurImg, ivec2(id.x + KerRad, id.y - KerRad)).rgb;
+    }
+    //right
+    if (l_id.x + KerRad >= groupSize.x)                                  
+    {
+        if (id.x + KerRad >= NoBlurSize.x)
+            ImgPiece[l_id.y + KerRad][l_id.x + 2 * KerRad] = vec3(0.f);
+        else
+            ImgPiece[l_id.y + KerRad][l_id.x + 2 * KerRad] = imageLoad(noBlurImg, ivec2(id.x + KerRad, id.y)).rgb;
+    }
+    //bottom-right
+    if (l_id.x + KerRad >= groupSize.x && l_id.y + KerRad >= groupSize.y)     
+    {
+        if (id.x + KerRad >= NoBlurSize.x || id.y + KerRad >= NoBlurSize.y)
+            ImgPiece[l_id.y + 2 * KerRad][l_id.x + 2 * KerRad] = vec3(0.f);
+        else
+            ImgPiece[l_id.y + 2 * KerRad][l_id.x + 2 * KerRad] = imageLoad(noBlurImg, ivec2(id.x + KerRad, id.y + KerRad)).rgb;
+    }
+    //bottom
+    if (l_id.y + KerRad >= groupSize.y)                                  
+    {
+        if (id.y + KerRad >= NoBlurSize.y)
+            ImgPiece[l_id.y + 2 * KerRad][l_id.x + KerRad] = vec3(0.f);
+        else
+            ImgPiece[l_id.y + 2 * KerRad][l_id.x + KerRad] = imageLoad(noBlurImg, ivec2(id.x, id.y + KerRad)).rgb;
+    }
+    //bottom-left
+    if (l_id.x < KerRad && l_id.y + KerRad >= groupSize.y)                
+    {
+        if (id.x < KerRad || id.y + KerRad >= NoBlurSize.y)
+            ImgPiece[l_id.y + 2 * KerRad][l_id.x] = vec3(0.f);
+        else
+            ImgPiece[l_id.y + 2 * KerRad][l_id.x] = imageLoad(noBlurImg, ivec2(id.x - KerRad, id.y + KerRad)).rgb;
+    }
+}
+
+void main() 
+{
+    uvec2 globalId = gl_GlobalInvocationID.xy;
+    uvec2 localId = gl_LocalInvocationID.xy;
+    uvec2 noBlurSize = imageSize(noBlurImg);
+    uvec2 groupSize = gl_WorkGroupSize.xy;
+    if (globalId.x < noBlurSize.x && globalId.y < noBlurSize.y)
+    {
+        prepareImgPiece(globalId, localId, noBlurSize, groupSize);
+        barrier();        
+        vec3 new_color = vec3(0.f);
+        float norm = 0.f;
+        for(int i = -8; i < 9; ++i)
+            if (localId.x + KerRad + i >= 0 && localId.x + KerRad + i < 48)
+            {
+                new_color += ImgPiece[localId.x + KerRad + i][localId.y + KerRad] * kernel.coeffs[KerRad + i];
+                norm += kernel.coeffs[KerRad + i];
+            }
+        new_color /= norm;
+        barrier();
+        ImgPiece[localId.x + KerRad][localId.y + KerRad] = new_color;
+        barrier();
+        new_color = vec3(0.f);
+        for(int i = -8; i < 9; ++i)
+            if (localId.y + KerRad + i >= 0 && localId.y + KerRad + i < 48)
+                new_color += ImgPiece[localId.x + KerRad][localId.y + KerRad + i] * kernel.coeffs[KerRad + i];
+        new_color /= norm;
+        barrier();
+        ImgPiece[localId.x + KerRad][localId.y + KerRad] = new_color;
+        barrier();
+        imageStore(blurImg, ivec2(globalId), vec4(ImgPiece[localId.y + KerRad][localId.x + KerRad], 1.0));
+        barrier();
+     }
+}
