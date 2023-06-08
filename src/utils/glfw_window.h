@@ -3,6 +3,7 @@
 
 #include "../render/render_common.h"
 #include "../render/render_gui.h"
+#include "../samples/shadowmap/shadowmap_render.h"
 
 #include "GLFW/glfw3.h"
 #include <memory>

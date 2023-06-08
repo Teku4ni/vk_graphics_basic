@@ -13,6 +13,8 @@
 
 /// RESOURCE ALLOCATION
 
+AppInput SimpleShadowmapRender::g_appInput;
+
 void SimpleShadowmapRender::AllocateResources()
 {
   mainViewDepth = m_context->createImage(etna::Image::CreateInfo

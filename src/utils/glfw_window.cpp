@@ -32,7 +32,7 @@ struct input_sample
 
 } g_inputDesktop;
 
-AppInput g_appInput;
+AppInput &g_appInput = SimpleShadowmapRender::g_appInput;
 
 void onKeyboardPressedBasic(GLFWwindow* window, int key, int, int action, int)
 {
