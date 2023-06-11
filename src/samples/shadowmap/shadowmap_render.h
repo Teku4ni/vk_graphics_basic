@@ -49,6 +49,8 @@ private:
   etna::Image shadowMap;
   etna::Sampler defaultSampler;
   etna::Buffer constants;
+  etna::Image varianceShadowMap;
+  etna::Image squaredVSM;
 
   VkCommandPool    m_commandPool    = VK_NULL_HANDLE;
 
@@ -77,6 +79,8 @@ private:
 
   etna::GraphicsPipeline m_basicForwardPipeline {};
   etna::GraphicsPipeline m_shadowPipeline {};
+  etna::ComputePipeline  m_gaussBlurPipeline{};
+  etna::GraphicsPipeline m_VSMPipeline{};
 
   std::shared_ptr<vk_utils::DescriptorMaker> m_pBindings = nullptr;
   
@@ -87,6 +91,28 @@ private:
   uint32_t m_width  = 1024u;
   uint32_t m_height = 1024u;
   uint32_t m_framesInFlight = 2u;
+  uint32_t m_kernel_size = 17;
+  // source for gaussian kernel values - https://observablehq.com/@jobleonard/gaussian-kernel-calculater
+  // sigma = 3.01
+  std::vector<float> m_gauss_kernel = {
+    0.0040037050753948455,
+    0.009093223993028301,
+    0.01851255852931128,
+    0.03378376030503585,
+    0.055264372772515204,
+    0.08103689094200749,
+    0.1065182291072107,
+    0.1255068413332486,
+    0.13256083588449544,
+    0.1255068413332486,
+    0.1065182291072107,
+    0.08103689094200749,
+    0.055264372772515204,
+    0.03378376030503585,
+    0.01851255852931128,
+    0.009093223993028301,
+    0.0040037050753948455
+  };
   bool m_vsync = false;
 
   vk::PhysicalDeviceFeatures m_enabledDeviceFeatures = {};
