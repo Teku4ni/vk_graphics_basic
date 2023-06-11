@@ -62,11 +62,20 @@ private:
 
   std::vector<VkFence> m_frameFences;
   std::vector<VkCommandBuffer> m_cmdBuffersDrawMain;
+  std::vector<float3> albedos{
+    {0.016f, 0.388f, 0.0028f},
+    {0.123f, 0.144f, 0.442f},
+    {0.891f, 0.630f, 0.000f},
+    {0.663f, 0.664f, 0.665f},
+    {0.322f, 1.000f, 0.228f},
+    {0.123f, 0.345f, 0.679f}
+  };
 
   struct
   {
     float4x4 projView;
     float4x4 model;
+    float3 albedo;
   } pushConst2M;
 
   float4x4 m_worldViewProj;
