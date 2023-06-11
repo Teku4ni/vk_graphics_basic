@@ -47,7 +47,8 @@ private:
   etna::GlobalContext* m_context;
   etna::Image mainViewDepth;
   etna::Image shadowMap;
-  etna::Sampler defaultSampler;
+  etna::Image superSampledImage;
+  etna::Sampler linearSampler;
   etna::Buffer constants;
 
   VkCommandPool    m_commandPool    = VK_NULL_HANDLE;
@@ -77,6 +78,7 @@ private:
 
   etna::GraphicsPipeline m_basicForwardPipeline {};
   etna::GraphicsPipeline m_shadowPipeline {};
+  etna::GraphicsPipeline m_SSAAPipeline{};
 
   std::shared_ptr<vk_utils::DescriptorMaker> m_pBindings = nullptr;
   
@@ -99,6 +101,9 @@ private:
   std::shared_ptr<vk_utils::IQuad>               m_pFSQuad;
   VkDescriptorSet       m_quadDS; 
   VkDescriptorSetLayout m_quadDSLayout = nullptr;
+
+  bool m_SSAA = false;
+  uint32_t m_buffer_scale = 1;
 
   struct InputControlMouseEtc
   {
